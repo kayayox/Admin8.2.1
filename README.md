@@ -134,10 +134,9 @@ Admin8.2.1/
 
 ## License
 
-[Specify your license here, e.g., MIT, GPL, or proprietary notice.]
+Este proyecto se proporciona "tal cual". Para licencias personalizadas, contacte al autor.
 
 ## Author
 
 [Soubhi Khayat Najjar / kayayox@gmail.com]
 Traduccion hecha con asistente IA
-```
