@@ -96,7 +96,7 @@ message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "SQLite3 include: ${SQLite3_INCLUDE_DIRS}")
 message(STATUS "SQLite3 lib: ${SQLite3_LIBRARIES}")
 
-option(BUILD_TESTING "Construir tests" ON)
+option(BUILD_TESTING "Build the testing tree" OFF)
 if(BUILD_TESTING)
     enable_testing()
     add_subdirectory(test)
