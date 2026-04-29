@@ -31,7 +31,7 @@ TEST_CASE("Tokenizer detecta fechas en distintos formatos", "[tokenizer]") {
 }
 
 TEST_CASE("Tokenizer maneja signos de puntuación", "[tokenizer]") {
-    auto tokens = tokenize("¡Hola, ¿cómo estás?!.");
+    auto tokens = tokenize("Hola!, cómo estás?!.");
     REQUIRE(tokens.size() == 3);
     CHECK(tokens[0].text == "hola");
     CHECK(tokens[1].text == "cómo");

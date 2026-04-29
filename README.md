@@ -1,5 +1,7 @@
 # Admin8.2.1 – C++ Natural Language Processing Engine
 
+![CI status](https://github.com/kayayox/Admin8.2.1/actions/workflows/ci.yml/badge.svg)
+
 A modular NLP engine written in C++17 that performs morphological analysis, part‑of‑speech tagging, pattern correlation, contextual learning, and dialogue generation. It uses SQLite for persistent storage and provides a clean API for integration.
 
 ## Features

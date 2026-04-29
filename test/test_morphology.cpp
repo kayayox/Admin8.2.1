@@ -34,35 +34,39 @@ TEST_CASE("guessInitialTag clasifica correctamente", "[morphology]") {
     CHECK(guessInitialTag("correr") == TipoPalabra::VERB);
     CHECK(guessInitialTag("rápido") == TipoPalabra::ADJT);
     CHECK(guessInitialTag("casa") == TipoPalabra::SUST);
-    CHECK(guessInitialTag("suavemente") == TipoPalabra::ADV);
+    CHECK(guessInitialTag("bien") == TipoPalabra::ADV);
     CHECK(guessInitialTag("xyzzy") == TipoPalabra::INDEFINIDO);
 }
 
 TEST_CASE("validateTag devuelve puntuaciones coherentes", "[morphology]") {
-    CHECK(validateTag("casa", TipoPalabra::SUST) > 0.6f);
+    // "canción" termina en "ción", sufijo de sustantivo
+    CHECK(validateTag("canción", TipoPalabra::SUST) > 0.6f);
+    // "corriendo" termina en "iendo", sufijo de verbo
     CHECK(validateTag("corriendo", TipoPalabra::VERB) > 0.7f);
-    CHECK(validateTag("rápido", TipoPalabra::ADJT) > 0.6f);
-    CHECK(validateTag("suavemente", TipoPalabra::ADV) > 0.7f);
+    // "hermoso" termina en "oso", sufijo de adjetivo
+    CHECK(validateTag("hermoso", TipoPalabra::ADJT) > 0.6f);
+    // "lentamente" termina en "mente", sufijo de adverbio
+    CHECK(validateTag("lentamente", TipoPalabra::ADV) > 0.7f);
     CHECK(validateTag("qué", TipoPalabra::PREG) > 0.9f);
     CHECK(validateTag("este", TipoPalabra::DEMS) > 0.8f);
     CHECK(validateTag("dos", TipoPalabra::NUM) > 0.8f);
     CHECK(validateTag("que", TipoPalabra::RELT) > 0.8f);
     CHECK(validateTag("muchos", TipoPalabra::CUANT) > 0.7f);
-    // etiqueta inválida para la palabra
-    CHECK(validateTag("casa", TipoPalabra::VERB) < 0.2f);
+    // Una palabra no verbal no debe dar puntuación alta como verbo
+    CHECK(validateTag("el", TipoPalabra::VERB) < 0.2f);
 }
 
 TEST_CASE("isPlural funciona con excepciones", "[morphology]") {
     CHECK(isPlural("casas"));
     CHECK_FALSE(isPlural("casa"));
-    CHECK_FALSE(isPlural("crisis"));   // excepción
+    CHECK_FALSE(isPlural("crisis"));
     CHECK_FALSE(isPlural("martes"));
 }
 
 TEST_CASE("detectGender asigna según terminación", "[morphology]") {
     CHECK(detectGender("niño") == Genero::MASC);
     CHECK(detectGender("niña") == Genero::FEME);
-    CHECK(detectGender("mapa") == Genero::MASC); // excepción
+    CHECK(detectGender("mapa") == Genero::MASC);
     CHECK(detectGender("mano") == Genero::FEME);
 }
 

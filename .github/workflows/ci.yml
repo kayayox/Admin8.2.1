@@ -1,0 +1,32 @@
+name: Tests and Valgrind
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake g++ libsqlite3-dev valgrind
+
+    - name: Configure CMake
+      run: cmake -B build -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build project and tests
+      run: cmake --build build --config Release
+
+    - name: Run unit tests
+      run: ctest --test-dir build --output-on-failure
+
+    - name: Run Valgrind memory check
+      run: ctest --test-dir build -T memcheck

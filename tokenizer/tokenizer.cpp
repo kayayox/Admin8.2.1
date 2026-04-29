@@ -51,8 +51,8 @@ static TokenType classify_token(const std::string& token) {
 static bool is_word_char(unsigned char c) {
     // Cualquier byte no ASCII
     if (c >= 0x80) return true;
-    // Para ASCII: letras, dígitos, apóstrofe y guión
-    return std::isalnum(c) || c == '\'' || c == '-' || c=='/' || c=='.' || c==',';
+    // Para ASCII: letras, dígitos, apóstrofe y guión/
+    return std::isalnum(c) || c == '\'' || c == '-' || c=='/' || c=='.' || c==',' || c == '?' || c=='!';
 }
 
 static void trim_punctuation(std::string& text) {
