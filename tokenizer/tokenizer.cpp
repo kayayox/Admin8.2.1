@@ -4,27 +4,34 @@ en un vector hot aparte,y tambien tomar en cuenta otros formatos de importancia*
 #include <cctype>
 #include <cstdio>
 #include <algorithm>
+#include <regex>
 
-// Detecta fechas en varios formatos, verificando que toda la cadena sea consumida
+
 static bool is_date_format(const std::string& token) {
-    int y, m, d;
-    int n = 0; // cantidad de caracteres consumidos
+    static const std::regex re_iso(R"(^\d{4}-\d{1,2}-\d{1,2}$)");
+    static const std::regex re_eu(R"(^\d{1,2}/\d{1,2}/\d{4}$)");
+    static const std::regex re_iso_slash(R"(^\d{4}/\d{1,2}/\d{1,2}$)");
+    static const std::regex re_eu_dot(R"(^\d{1,2}\.\d{1,2}\.\d{4}$)");
 
-    // Formato 1: YYYY-MM-DD
-    if (sscanf(token.c_str(), "%d-%d-%d%n", &y, &m, &d, &n) == 3 && n == (int)token.size()) {
-        return (y >= 1 && y <= 9999 && m >= 1 && m <= 12 && d >= 1 && d <= 31);
+    if (std::regex_match(token, re_iso)) {
+        int y, m, d;
+        sscanf(token.c_str(), "%d-%d-%d", &y, &m, &d);
+        return (m >= 1 && m <= 12 && d >= 1 && d <= 31);
     }
-    // Formato 2: DD/MM/YYYY
-    if (sscanf(token.c_str(), "%d/%d/%d%n", &d, &m, &y, &n) == 3 && n == (int)token.size()) {
-        return (y >= 1 && y <= 9999 && m >= 1 && m <= 12 && d >= 1 && d <= 31);
+    if (std::regex_match(token, re_eu)) {
+        int d, m, y;
+        sscanf(token.c_str(), "%d/%d/%d", &d, &m, &y);
+        return (m >= 1 && m <= 12 && d >= 1 && d <= 31);
     }
-    // Formato 3: YYYY/MM/DD
-    if (sscanf(token.c_str(), "%d/%d/%d%n", &y, &m, &d, &n) == 3 && n == (int)token.size()) {
-        return (y >= 1 && y <= 9999 && m >= 1 && m <= 12 && d >= 1 && d <= 31);
+    if (std::regex_match(token, re_iso_slash)) {
+        int y, m, d;
+        sscanf(token.c_str(), "%d/%d/%d", &y, &m, &d);
+        return (m >= 1 && m <= 12 && d >= 1 && d <= 31);
     }
-    // Formato 4: DD.MM.YYYY
-    if (sscanf(token.c_str(), "%d.%d.%d%n", &d, &m, &y, &n) == 3 && n == (int)token.size()) {
-        return (y >= 1 && y <= 9999 && m >= 1 && m <= 12 && d >= 1 && d <= 31);
+    if (std::regex_match(token, re_eu_dot)) {
+        int d, m, y;
+        sscanf(token.c_str(), "%d.%d.%d", &d, &m, &y);
+        return (m >= 1 && m <= 12 && d >= 1 && d <= 31);
     }
     return false;
 }

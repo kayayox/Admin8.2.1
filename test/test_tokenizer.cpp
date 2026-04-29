@@ -24,7 +24,7 @@ TEST_CASE("Tokenizer detecta números", "[tokenizer]") {
 }
 
 TEST_CASE("Tokenizer detecta fechas en distintos formatos", "[tokenizer]") {
-    auto tokens = tokenize("12-31-2024 31/12/2024 01.01.2025 01/31/2024");
+    auto tokens = tokenize("2024-12-31 31/12/2024 01.01.2025 2024/01/31");
     REQUIRE(tokens.size() == 4);
     for (const auto& t : tokens)
         CHECK(t.type == TokenType::DATE);

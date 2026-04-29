@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.14)
 
-# Descargar Catch2 automáticamente
+# -----------------------------------------------------------------------
+# Obtener Catch2
+# -----------------------------------------------------------------------
 include(FetchContent)
 FetchContent_Declare(
   Catch2
@@ -9,11 +11,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Catch2)
 
+# Necesario para catch_discover_tests
+include(CTest)
 enable_testing()
 
-# ------------------------------------------------------------------------
-# Fuentes necesarias del proyecto
-# ------------------------------------------------------------------------
+# -----------------------------------------------------------------------
+# Fuentes del proyecto (sin main.cpp)
+# -----------------------------------------------------------------------
 set(PROJECT_BASE ${CMAKE_SOURCE_DIR})
 set(PROJECT_SOURCES
     ${PROJECT_BASE}/core/word.cpp
@@ -36,10 +40,10 @@ set(PROJECT_SOURCES
     ${PROJECT_BASE}/nlp_api.cpp
 )
 
-# ------------------------------------------------------------------------
-# Tests
-# ------------------------------------------------------------------------
-set(TEST_SOURCES
+# -----------------------------------------------------------------------
+# Ejecutable de pruebas
+# -----------------------------------------------------------------------
+add_executable(run_tests
     test_tokenizer.cpp
     test_morphology.cpp
     test_classifier.cpp
@@ -49,11 +53,9 @@ set(TEST_SOURCES
     test_dialogue.cpp
     test_utils.cpp
     test_integration.cpp
+    ${PROJECT_SOURCES}
 )
 
-add_executable(run_tests ${TEST_SOURCES} ${PROJECT_SOURCES})
-
-# Directorios de inclusión
 target_include_directories(run_tests PRIVATE
     ${PROJECT_BASE}
     ${PROJECT_BASE}/core
@@ -64,12 +66,14 @@ target_include_directories(run_tests PRIVATE
     ${PROJECT_BASE}/utils
 )
 
-# Enlazar con Catch2 y SQLite3
 target_link_libraries(run_tests PRIVATE Catch2::Catch2WithMain SQLite::SQLite3)
 
-# ------------------------------------------------------------------------
-# Configuración de Valgrind
-# ------------------------------------------------------------------------
+# Registrar las pruebas con CTest (usando el módulo de Catch2)
+catch_discover_tests(run_tests)
+
+# -----------------------------------------------------------------------
+# Configuración para Valgrind
+# -----------------------------------------------------------------------
 find_program(VALGRIND_EXECUTABLE valgrind)
 if(VALGRIND_EXECUTABLE)
     set(CTEST_MEMORYCHECK_COMMAND "${VALGRIND_EXECUTABLE}" CACHE STRING "Command for memory check")
