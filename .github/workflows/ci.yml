@@ -29,4 +29,4 @@ jobs:
       run: ctest --test-dir build --output-on-failure
 
     - name: Run Valgrind memory check
-      run: ctest --test-dir build -T memcheck
+      run: valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./build/test/run_tests
