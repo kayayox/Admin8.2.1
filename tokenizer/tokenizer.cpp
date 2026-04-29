@@ -48,6 +48,14 @@ static bool is_word_char(unsigned char c) {
     return std::isalnum(c) || c == '\'' || c == '-' || c=='/' || c=='.' || c==',';
 }
 
+static void trim_punctuation(std::string& text) {
+    static const std::string punct = ".,;:!?¡¿";
+    while (!text.empty() && punct.find(text.back()) != std::string::npos)
+        text.pop_back();
+    while (!text.empty() && punct.find(text.front()) != std::string::npos)
+        text.erase(0,1);
+}
+
 static std::string to_lower_utf8(const std::string& s) {
     std::string res;
     res.reserve(s.size());
@@ -120,6 +128,9 @@ std::vector<Token> tokenize(const std::string& input) {
         Token t;
         t.text = to_lower_utf8(token);
         t.type = classify_token(t.text);
+        if (t.type == TokenType::WORD) {
+            trim_punctuation(t.text);
+        }
         tokens.push_back(t);
     }
     return tokens;
