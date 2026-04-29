@@ -26,7 +26,7 @@ jobs:
       run: cmake --build build --config Release
 
     - name: Run unit tests
-      run: ctest --test-dir build --output-on-failure
+      run: test/run_tests
 
     - name: Run Valgrind memory check
-      run: ctest --test-dir build -T memcheck
+      run: valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes -s test/run_tests
