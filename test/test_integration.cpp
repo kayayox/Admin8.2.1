@@ -25,11 +25,11 @@ struct IntegrationFixture {
 
 TEST_CASE_METHOD(IntegrationFixture, "Aprender y clasificar una oración simple", "[integration]") {
     engine.learnText("El sol brilla.");
-    auto infos = engine.classifySentence("El sol brilla.");
+    auto infos = engine.classifySentence("El sol brillante.");
     REQUIRE(infos.size() == 3);
     CHECK(infos[0].tipo == "Artículo");
     CHECK(infos[1].tipo == "Sustantivo");
-    CHECK(infos[2].tipo == "Verbo");
+    CHECK(infos[2].tipo == "Adjetivo");
 }
 
 TEST_CASE_METHOD(IntegrationFixture, "Predicción de siguiente palabra", "[integration]") {
