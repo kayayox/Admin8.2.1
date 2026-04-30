@@ -63,30 +63,33 @@ TagConfidence refineTag(TipoPalabra prev2, TipoPalabra prev, TipoPalabra current
     }
 
     // Si hay etiqueta actual, favorecer el trigrama bidireccional
-    if (!trigram.empty()) {
-        auto best = getBestPrediction(trigram);
-        if (best.first == current) {
-            float newConf = std::min(1.0f, currentConfidence + 0.2f);
-            return {current, newConf};
+    if(currentConfidence>0.2f && current!=TipoPalabra::INDEFINIDO){
+        if (!trigram.empty()) {
+            auto best = getBestPrediction(trigram);
+            if (best.first == current) {
+                float newConf = std::min(1.0f, currentConfidence + 0.2f);
+                return {current, newConf};
+            }
+            pro={getBestPrediction(trigram).first,getBestPrediction(trigram).second};
         }
-        pro={getBestPrediction(trigram).first,getBestPrediction(trigram).second};
-    }
-    if (!bigram.empty()) {
-        auto best = getBestPrediction(bigram);
-        if (best.first == current) {
-            float newConf = std::min(1.0f, currentConfidence + 0.1f);
-            return {current, newConf};
+        if (!bigram.empty()) {
+            auto best = getBestPrediction(bigram);
+            if (best.first == current) {
+                float newConf = std::min(1.0f, currentConfidence + 0.1f);
+                return {current, newConf};
+            }
+            TagConfidence remp={getBestPrediction(bigram).first,getBestPrediction(bigram).second};
+            if(remp.confidence>pro.confidence)pro=remp;
         }
-        TagConfidence remp={getBestPrediction(bigram).first,getBestPrediction(bigram).second};
-        if(remp.confidence>pro.confidence)pro=remp;
-    }
-    if (!unigram.empty()) {
-        auto best = getBestPrediction(unigram);
-        if (best.first == current) return {current, currentConfidence + 0.05f};
-        TagConfidence remp1={getBestPrediction(bigram).first,getBestPrediction(bigram).second};
-        if(remp1.confidence>pro.confidence)pro=remp1;
-    }
+        if (!unigram.empty()) {
+            auto best = getBestPrediction(unigram);
+            if (best.first == current) return {current, currentConfidence + 0.05f};
+            TagConfidence remp1={getBestPrediction(bigram).first,getBestPrediction(bigram).second};
+            if(remp1.confidence>pro.confidence)pro=remp1;
+        }
     return pro;
+    }
+    return {TipoPalabra::INDEFINIDO,0.0f};
 }
 
 #endif
