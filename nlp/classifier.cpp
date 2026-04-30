@@ -10,7 +10,7 @@
 constexpr float HIGH_CONF_THRESHOLD = 0.8f;
 constexpr float VALIDATION_PASS_THRESHOLD = 0.4f;
 constexpr float LOW_CONF_FOR_REEVAL = 0.2f;
-
+void testTrigramPrediction(TipoPalabra prev2,TipoPalabra prev, TipoPalabra next);
 Classifier::Classifier() {}
 
 void Classifier::updateMorphAttributes(Word& w, TipoPalabra tag) {
@@ -61,7 +61,7 @@ void Classifier::classifySentence(std::vector<Word>& words) {
         // 1b. Clasificacion morfologica inicial por sufijos
         TipoPalabra guessTag = morphology::guessInitialTag(w.getPalabra());
         float morphConf = morphology::validateTag(w.getPalabra(), guessTag);
-        if (morphConf >= VALIDATION_PASS_THRESHOLD) {
+        if (morphConf >= HIGH_CONF_THRESHOLD) {
             w.setTipo(guessTag, true);
             w.setConfianza(morphConf, true);
             updateMorphAttributes(w, guessTag);
@@ -74,34 +74,26 @@ void Classifier::classifySentence(std::vector<Word>& words) {
     }
 
     // Paso 2: Refinamiento contextual iterativo
-    for (int pass = 0; pass < 2; ++pass) {
-        for (size_t i = 0; i < words.size(); ++i) {
-            Word& w = words[i];
-            if (w.getConfianza() >= HIGH_CONF_THRESHOLD) continue; // ya es buena
+    for (size_t i = 0; i < words.size(); ++i) {
+        Word& w = words[i];
+        if (w.getConfianza() >= HIGH_CONF_THRESHOLD) continue; // ya es buena
 
-            // Obtenemos contexto actualizado
-            TipoPalabra prev2 = (i >= 2) ? words[i-2].getTipo() : TipoPalabra::INDEFINIDO;
-            TipoPalabra prev  = (i >= 1) ? words[i-1].getTipo() : TipoPalabra::INDEFINIDO;
-            TipoPalabra next  = (i+1 < words.size()) ? words[i+1].getTipo() : TipoPalabra::INDEFINIDO;
+        // Obtenemos contexto actualizado
+        TipoPalabra prev2 = (i >= 2) ? words[i-2].getTipo() : TipoPalabra::INDEFINIDO;
+        TipoPalabra prev  = (i >= 1) ? words[i-1].getTipo() : TipoPalabra::INDEFINIDO;
+        TipoPalabra next  = (i+1 < words.size()) ? words[i+1].getTipo() : TipoPalabra::INDEFINIDO;
 
-            TagConfidence ctx = refineTag(prev2, prev, w.getTipo(), next, w.getConfianza());
-            float morphScore = morphology::validateTag(w.getPalabra(), ctx.tag);
+        //testTrigramPrediction(prev2,prev,next);
+        TagConfidence ctx = refineTag(prev2, prev, w.getTipo(), next, w.getConfianza());
+        float morphScore = morphology::validateTag(w.getPalabra(), ctx.tag);
 
-            // Combinación de puntuaciones
-            float combined = 0.6f * ctx.confidence + 0.4f * morphScore;
-            if (combined >= VALIDATION_PASS_THRESHOLD) {
-                w.setTipo(ctx.tag, true);
-                w.setConfianza(std::min(1.0f, combined), true);
-                updateMorphAttributes(w, ctx.tag);
-            } else {
-                // No pasa el umbral: mantenemos INDEFINIDO pero confianza baja
-                w.setTipo(TipoPalabra::INDEFINIDO, true);
-                w.setConfianza(LOW_CONF_FOR_REEVAL, true);
-            }
-            w.save();
-        }
+        // Combinación de puntuaciones
+        float combined = 0.6f * ctx.confidence + 0.4f * morphScore;
+        w.setTipo(ctx.tag, true);
+        w.setConfianza(std::min(1.0f, combined), true);
+        updateMorphAttributes(w, ctx.tag);
+        w.save();
     }
-
     // Paso 3: Actualizacion de estadisticas de transicion solo si toda la oracion es fiable
     bool sentenceHighConf = true;
     for (const auto& w : words)
@@ -126,19 +118,17 @@ void Classifier::requestCorrection(Word& w, TipoPalabra prev2, TipoPalabra prev,
 
     // Obtener etiqueta refinada por contexto (bidireccional)
     TagConfidence refined = refineTag(prev2, prev, w.getTipo(), next, currentConfidence);
-    // Validar morfológicamente esa etiqueta
-    float morphScore = morphology::validateTag(w.getPalabra(), refined.tag);
     // Combinar puntuaciones (60% contexto, 40% morfología)
-    float combined = 0.6f * refined.confidence + 0.4f * morphScore;
+    float combined = 0.6f * refined.confidence;
 
-    if (combined >= VALIDATION_PASS_THRESHOLD) {
+    if (combined >= LOW_CONF_FOR_REEVAL) {
         // La corrección es viable
         if (refined.tag != w.getTipo()) {
             // Hay cambio de etiqueta
             w.setTipo(refined.tag, true);
             w.setConfianza(std::min(1.0f, combined), true);
             updateMorphAttributes(w, refined.tag);
-            std::cout << "[Corrección solicitada] '" << w.getPalabra() << "' "
+            std::cout << "[Corrección] '" << w.getPalabra() << "' "
                       << tipoToString(w.getTipo()) << " -> " << tipoToString(refined.tag)
                       << " (confianza " << combined * 100 << "%)\n";
         } else {
@@ -148,15 +138,65 @@ void Classifier::requestCorrection(Word& w, TipoPalabra prev2, TipoPalabra prev,
                 updateMorphAttributes(w, refined.tag); // por si acaso
             }
         }
-    } else {
-        // No pasa el umbral: degradar a indefinido con baja confianza
-        if (w.getTipo() != TipoPalabra::INDEFINIDO || w.getConfianza() > LOW_CONF_FOR_REEVAL) {
-            w.setTipo(TipoPalabra::INDEFINIDO, true);
-            w.setConfianza(LOW_CONF_FOR_REEVAL, true);
-            std::cout << "[Corrección fallida] '" << w.getPalabra() << "' pasa a INDEFINIDO (baja confianza)\n";
-        }
     }
     w.save();
+}
+
+#include <iostream>
+#include <iomanip>
+
+void testTrigramPrediction(TipoPalabra prev2,TipoPalabra prev, TipoPalabra next) {
+    std::cout << "\n=== TEST TRIGRAM PREDICTION ===" << std::endl;
+    std::cout << "prev2 = " << static_cast<int>(prev2) << " (" << tipoToString(prev2) << ")" << std::endl;
+    std::cout << "prev = " << static_cast<int>(prev) << " (" << tipoToString(prev) << ")" << std::endl;
+    std::cout << "next = " << static_cast<int>(next) << " (" << tipoToString(next) << ")" << std::endl;
+
+    // Asegurar que las tablas existen y tienen datos
+    TagStats::initTable();
+    TagStats::loadDefaultFromStatic(); // Solo carga si está vacío
+
+    auto probs = TagStats::getTrigramProbs(prev, next);
+
+    if (probs.empty()) {
+        std::cout << "No predictions found (empty vector)." << std::endl;
+    } else {
+        /*std::cout << "Predictions (curr -> probability):" << std::endl;
+        for (const auto& p : probs) {
+            std::cout << "  " << std::setw(12) << tipoToString(p.first)
+                      << " : " << std::fixed << std::setprecision(6) << p.second << std::endl;
+        }*/
+        auto best = getBestPrediction(probs);
+        std::cout << "\nBest prediction: " << tipoToString(best.first)
+                  << " with confidence " << best.second << std::endl;
+    }
+    auto probs1 = TagStats::getBigramProbs(prev2, prev);
+
+    if (probs1.empty()) {
+        std::cout << "No predictions found (empty vector)." << std::endl;
+    } else {
+        /*std::cout << "Predictions (curr -> probability):" << std::endl;
+        for (const auto& p : probs) {
+            std::cout << "  " << std::setw(12) << tipoToString(p.first)
+                      << " : " << std::fixed << std::setprecision(6) << p.second << std::endl;
+        }*/
+        auto best1 = getBestPrediction(probs1);
+        std::cout << "\nBest prediction: " << tipoToString(best1.first)
+                  << " with confidence " << best1.second << std::endl;
+    }
+    auto probs2 = TagStats::getUnigramProbs( prev);
+
+    if (probs2.empty()) {
+        std::cout << "No predictions found (empty vector)." << std::endl;
+    } else {
+        /*std::cout << "Predictions (curr -> probability):" << std::endl;
+        for (const auto& p : probs) {
+            std::cout << "  " << std::setw(12) << tipoToString(p.first)
+                      << " : " << std::fixed << std::setprecision(6) << p.second << std::endl;
+        }*/
+        auto best2 = getBestPrediction(probs2);
+        std::cout << "\nBest prediction: " << tipoToString(best2.first)
+                  << " with confidence " << best2.second << std::endl;
+    }
 }
 
 void Classifier::updateConfidence(Word& w, bool acierto) {

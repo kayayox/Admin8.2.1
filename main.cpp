@@ -2,6 +2,7 @@
 #include <sstream>
 #include "nlp_api.h"
 #include "tokenizer/tokenizer.hpp"
+#include "nlp/classifier.hpp"
 #include "core/word.hpp"
 #include <iostream>
 #include <regex>
@@ -12,6 +13,8 @@
 #include <fstream>
 #include <algorithm>
 #include <cctype>
+#include <cstring>
+
 
 // ==================== Funciones auxiliares ====================
 void printWordInfo(const WordInfo& info) {
@@ -44,11 +47,12 @@ bool askYesNo(const std::string& question) {
         char first = std::tolower(answer[0]);
         if (first == 's') return true;
         if (first == 'n') return false;
-        std::cout << "Respuesta no válida. Por favor responda 's' o 'n'.\n";
+
+    std::cout << "Respuesta no válida. Por favor responda 's' o 'n'.\n";
     }
 }
 
-// Conjunto de abreviaturas
+// Conjunto de abreviaturas,debe elaborarce un parse para abreviaturas
 static const std::set<std::string> ABREVIATURAS = {
     "dr", "dra", "sr", "sra", "srta", "srl", "d", "s", "v",
     "ej", "p.ej", "etc", "fig", "pág", "vol", "cap", "ed",
@@ -63,42 +67,63 @@ std::vector<std::string> dividirEnOraciones(const std::string& texto) {
     std::vector<std::string> oraciones;
     std::string actual;
     size_t i = 0;
-    int len = texto.size();
-    while (i < len) {
+    const size_t n = texto.size();
+
+    while (i < n) {
         actual += texto[i];
-        if (texto[i] == '.' || texto[i] == '!' || texto[i] == '?') {
-            size_t inicioPalabra = actual.rfind(' ', actual.size() - 2);
-            if (inicioPalabra == std::string::npos) inicioPalabra = 0;
-            else inicioPalabra++;
-            std::string palabra = actual.substr(inicioPalabra, actual.size() - inicioPalabra - 1);
-            while (!palabra.empty() && ispunct(palabra.back())) palabra.pop_back();
+        char c = texto[i];
+
+        // 1. Puntuacion (., !, ?) con verificacion de abreviatura
+        if (c == '.' || c == '!' || c == '?') {
+            // Extraer la palabra anterior al signo
+            size_t inicio = actual.rfind(' ', actual.size() - 2);
+            if (inicio == std::string::npos) inicio = 0;
+            else inicio++;
+            std::string palabra = actual.substr(inicio, actual.size() - inicio - 1);
+            // Limpiar puntuacion final (por si hay ...)
+            while (!palabra.empty() && ispunct(static_cast<unsigned char>(palabra.back())))
+                palabra.pop_back();
             std::transform(palabra.begin(), palabra.end(), palabra.begin(), ::tolower);
-            bool esAbrev = esAbreviatura(palabra);
-            if (!esAbrev) {
-                size_t sig = i + 1;
-                while (sig < len && texto[sig] == ' ') sig++;
-                if (sig == len) {
-                    oraciones.push_back(actual);
-                    actual.clear();
-                    i = sig;
-                    continue;
-                } else if (sig < len && isupper(texto[sig])) {
-                    oraciones.push_back(actual);
-                    actual.clear();
-                    i = sig - 1;
+
+            if (esAbreviatura(palabra)) {
+                i++;   // abreviatura -> no separar
+                continue;
+            }
+        }
+
+        // 2. Posible final de oracion (puntuacion no abreviatura O salto de línea)
+        if (c == '.' || c == '!' || c == '?' || c == '\n') {
+            // Buscar el siguiente caracter que no sea espacio, tab o retorno de carro
+            size_t sig = i + 1;
+            while (sig < n && (texto[sig] == ' ' || texto[sig] == '\t' || texto[sig] == '\r')) {
+                sig++;
+            }
+
+            // Condición para separar: fin de texto o siguiente carácter es mayúscula
+            if (sig == n || isupper(static_cast<unsigned char>(texto[sig]))) {
+                oraciones.push_back(actual);
+                actual.clear();
+                if (sig == n) {
+                    break;             // terminamos
+                } else {
+                    i = sig - 1;       // retroceder para que al incrementar i++ apunte a la mayuscula
                 }
             }
         }
         i++;
     }
+
+    // Ultima oración si quedo algo no vacio
     if (!actual.empty()) {
         size_t start = actual.find_first_not_of(" \t\r\n");
         if (start != std::string::npos) {
             size_t end = actual.find_last_not_of(" \t\r\n");
             actual = actual.substr(start, end - start + 1);
-            if (!actual.empty()) oraciones.push_back(actual);
+            if (!actual.empty())
+                oraciones.push_back(actual);
         }
     }
+
     return oraciones;
 }
 
@@ -108,18 +133,15 @@ bool learnFromFile(NLPEngine& engine, const std::string& filename) {
         std::cerr << "Advertencia: No se pudo abrir el archivo '" << filename << "'.\n";
         return false;
     }
-    std::string contenido, linea;
-    while (std::getline(file, linea)) {
-        size_t start = linea.find_first_not_of(" \t\r\n");
-        if (start == std::string::npos) continue;
-        size_t end = linea.find_last_not_of(" \t\r\n");
-        linea = linea.substr(start, end - start + 1);
-        if (!contenido.empty() && !linea.empty()) contenido += ' ';
-        contenido += linea;
-    }
+    std::string contenido;
+    file.seekg(0, std::ios::end);
+    contenido.resize(file.tellg());
+    file.seekg(0, std::ios::beg);
+    file.read(&contenido[0], contenido.size());
+    file.close();
     std::vector<std::string> oraciones = dividirEnOraciones(contenido);
     int sentenceCount = 0;
-    for (const auto& oracion : oraciones) {
+    for (auto& oracion : oraciones) {
         if (oracion.empty()) continue;
         engine.learnText(oracion);
         sentenceCount++;
@@ -156,6 +178,7 @@ int main() {
 
     int opcion;
     do {
+        //testTrigramPrediction(TipoPalabra::SUST, TipoPalabra::INDEFINIDO);
         mostrarMenu();
         std::cin >> opcion;
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
@@ -197,7 +220,8 @@ int main() {
                 std::string palabra;
                 std::getline(std::cin, palabra);
                 if (!palabra.empty()) {
-                    WordInfo info = engine.getWordInfo(palabra);
+                    Word w(palabra);
+                    WordInfo info = engine.wordinfo(w);
                     printWordInfo(info);
                 }
                 break;
@@ -292,14 +316,15 @@ int main() {
                     std::cout << "Aprendida: " << correctedSentence << "\n";
                     currentPhrase += " " + predicted;
                     // Mostrar información de la palabra añadida
-                    WordInfo info = engine.getWordInfo(predicted);
+                    Word w(predicted);
+                    WordInfo info = engine.wordinfo(w);
                     std::cout << "Información de '" << predicted << "':\n";
                     printWordInfo(info);
                     // Preguntar si se desea refinar esa palabra...no es necesario,pero sirve para la prueba
                     if (askYesNo("¿Refinar esta palabra con requestCorrection?")) {
                         engine.refineWord(predicted, (tokens.size()>=3 ? tokens[tokens.size()-3] : ""),
                                           prev1, "");
-                        info = engine.getWordInfo(predicted);
+                        info = engine.wordinfo(w);
                         std::cout << "Después de refinar:\n";
                         printWordInfo(info);
                     }
